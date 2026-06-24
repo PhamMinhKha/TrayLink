@@ -12,6 +12,7 @@ mod tls;
 mod usage_monitor;
 mod codex_usage;
 mod state;
+mod system_metrics;
 mod tray;
 mod uploads;
 
@@ -136,6 +137,14 @@ async fn get_codex_usage_status(
         cfg.codex_usage_monitor_enabled
     };
     Ok(codex_usage::get_usage_status(enabled).await)
+}
+
+#[tauri::command]
+fn get_system_metrics_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> system_metrics::SystemMetricsResponse {
+    let prefs = state.config.read().unwrap().system_metrics.clone();
+    system_metrics::get_status(&prefs)
 }
 
 #[tauri::command]
@@ -488,6 +497,7 @@ pub fn run() {
             get_claude_usage_status,
             get_claude_diagnostics,
             get_codex_usage_status,
+            get_system_metrics_status,
             list_installed_apps_cmd,
             resolve_launch_path_cmd,
             list_browser_profiles,

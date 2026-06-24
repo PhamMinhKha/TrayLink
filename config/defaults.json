@@ -5,6 +5,15 @@
   "allow_get": true,
   "usage_monitor_enabled": false,
   "codex_usage_monitor_enabled": false,
+  "system_metrics": {
+    "cpu": false,
+    "memory": false,
+    "disk": false,
+    "network": false,
+    "cpu_temperature": false,
+    "battery_temperature": false,
+    "fan_speed": false
+  },
   "autostart": false,
   "apps": {},
   "commands": {

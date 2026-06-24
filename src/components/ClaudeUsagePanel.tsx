@@ -216,9 +216,9 @@ export function ClaudeUsagePanel() {
           <div className="space-y-1">
             <Label htmlFor="claude-usage-monitor">Bật lấy % sử dụng</Label>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Khi bật, TrayLink sẽ đọc token Claude Code local rồi gọi Anthropic để lấy mức
-              sử dụng 5 giờ và 7 ngày. Cấu trúc này để sẵn để sau này thêm Codex không phải
-              đổi lại UI.
+              Khi bật, TrayLink đọc token Claude Code local (file credentials, Credential
+              Manager/Keychain, hoặc biến <code className="rounded bg-muted px-1">CLAUDE_CODE_OAUTH_TOKEN</code>)
+              rồi gọi Anthropic để lấy mức sử dụng 5 giờ và 7 ngày. Hỗ trợ Windows và macOS.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -333,7 +333,8 @@ POST ${usageUrl}`}
               <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="font-medium">Tín hiệu đã kiểm tra</p>
                 <p className="mt-1 text-muted-foreground">
-                  Keychain: {diagnostics.keychain_services_checked.join(", ")}
+                  {diagnostics.auth_store_label ?? "Auth store"}:{" "}
+                  {diagnostics.keychain_services_checked.join(", ")}
                 </p>
                 <p className="mt-1 text-muted-foreground">
                   Claude.app: {diagnostics.claude_app_installed ? "Có" : "Không"}

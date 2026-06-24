@@ -104,6 +104,10 @@ pub fn build_router(state: SharedState) -> Router {
     .route("/send-hotkey", get(send_hotkey_get).post(send_hotkey_post))
         .route("/claude-usage", get(claude_usage_get).post(claude_usage_post))
         .route("/codex-usage", get(codex_usage_get).post(codex_usage_post))
+        .route(
+            "/system-metrics",
+            get(system_metrics_get).post(system_metrics_post),
+        )
     .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES as usize))
     .layer(CorsLayer::permissive())
     .layer(TraceLayer::new_for_http())
@@ -609,6 +613,86 @@ async fn handle_codex_usage(
         state,
         method,
         "/codex-usage",
+        200,
+        started.elapsed().as_millis() as u64,
+        client_ip,
+    );
+    (StatusCode::OK, Json(payload)).into_response()
+}
+
+#[derive(Deserialize)]
+struct SystemMetricsQuery {
+    #[serde(default)]
+    token: Option<String>,
+}
+
+async fn system_metrics_post(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+) -> Response {
+    let started = Instant::now();
+    if let Err(resp) = extract_token(&headers, None, &state) {
+        log_request(
+            &state,
+            "POST",
+            "/system-metrics",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_system_metrics(&state, "POST", started, &ip)
+}
+
+async fn system_metrics_get(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+    Query(query): Query<SystemMetricsQuery>,
+) -> Response {
+    let started = Instant::now();
+    if !state.config.read().unwrap().allow_get {
+        log_request(
+            &state,
+            "GET",
+            "/system-metrics",
+            405,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return reject_get_disabled();
+    }
+
+    if let Err(resp) = extract_token(&headers, query.token.as_deref(), &state) {
+        log_request(
+            &state,
+            "GET",
+            "/system-metrics",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_system_metrics(&state, "GET", started, &ip)
+}
+
+fn handle_system_metrics(
+    state: &SharedState,
+    method: &str,
+    started: Instant,
+    client_ip: &str,
+) -> Response {
+    let prefs = state.config.read().unwrap().system_metrics.clone();
+    let payload = crate::system_metrics::get_status(&prefs);
+    log_request(
+        state,
+        method,
+        "/system-metrics",
         200,
         started.elapsed().as_millis() as u64,
         client_ip,

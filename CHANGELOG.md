@@ -7,6 +7,14 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-06-25
+
+### Added
+
+- **System metrics** — bật/tắt từng metric (CPU, RAM, ổ đĩa, mạng, nhiệt CPU/pin, quạt) trong Settings; hiển thị section **System** trong popup tray; API **`GET/POST /system-metrics`**
+- Thu thập cross-platform qua `sysinfo`; nhiệt/quạt best-effort trên Windows (WMI) và macOS (`ioreg`), trả `unsupported` khi không đọc được
+- **Claude quota trên Windows** — đọc `%USERPROFILE%\.claude\.credentials.json` và `%USERPROFILE%\.claude.json` (kể cả `claudeAiOauth`), fallback Windows Credential Manager (kể cả target có hash theo `CLAUDE_CONFIG_DIR`), hỗ trợ `CLAUDE_CODE_OAUTH_TOKEN`; diagnostics + `where claude` cho Windows
+
 ## [0.1.20] - 2026-06-25
 
 ### Added
@@ -224,6 +232,7 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `open-file` chặn path traversal và system paths
 - `exec` chỉ chấp nhận command key, không chạy raw shell
 
+[0.1.21]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.21
 [0.1.20]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.20
 [0.1.15]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.15
 [0.1.14]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.14

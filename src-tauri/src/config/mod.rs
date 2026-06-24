@@ -32,6 +32,36 @@ fn default_codex_usage_monitor_enabled() -> bool {
     false
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SystemMetricsPreferences {
+    #[serde(default)]
+    pub cpu: bool,
+    #[serde(default)]
+    pub memory: bool,
+    #[serde(default)]
+    pub disk: bool,
+    #[serde(default)]
+    pub network: bool,
+    #[serde(default)]
+    pub cpu_temperature: bool,
+    #[serde(default)]
+    pub battery_temperature: bool,
+    #[serde(default)]
+    pub fan_speed: bool,
+}
+
+impl SystemMetricsPreferences {
+    pub fn any_enabled(&self) -> bool {
+        self.cpu
+            || self.memory
+            || self.disk
+            || self.network
+            || self.cpu_temperature
+            || self.battery_temperature
+            || self.fan_speed
+    }
+}
+
 impl RemoteDeckLayout {
     pub fn deck_items<'a>(
         app_keys: impl Iterator<Item = &'a str>,
@@ -152,6 +182,8 @@ pub struct AppConfig {
     pub usage_monitor_enabled: bool,
     #[serde(default = "default_codex_usage_monitor_enabled")]
     pub codex_usage_monitor_enabled: bool,
+    #[serde(default)]
+    pub system_metrics: SystemMetricsPreferences,
     pub autostart: bool,
     pub apps: HashMap<String, AppEntry>,
     pub commands: HashMap<String, ExecEntry>,

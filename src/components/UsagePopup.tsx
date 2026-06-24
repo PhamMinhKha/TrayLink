@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertCircle, RefreshCw, Settings2 } from "lucide-react";
+import { Activity, AlertCircle, RefreshCw, Settings2 } from "lucide-react";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import claudeSymbol from "@/assets/claude-ai-symbol.svg";
 import codexSymbol from "@/assets/codex-color.png";
 import { formatWindowHint, UsageRingGauge } from "@/components/UsageRingGauge";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { usageBarColor } from "@/components/UsageCompactBar";
 import {
   getClaudeUsageStatus,
   getCodexUsageStatus,
   getConfig,
+  getSystemMetricsStatus,
   showDashboard,
+  systemMetricsAnyEnabled,
   type AppConfig,
+  type SystemMetricsResponse,
   type UsageMonitorResponse,
   type UsageWindow,
 } from "@/lib/tauri";
@@ -23,6 +27,16 @@ const POPUP_HEIGHT_PADDING = 4;
 function syncPopupWindowSize(root: HTMLElement) {
   const height = Math.ceil(root.scrollHeight) + POPUP_HEIGHT_PADDING;
   void getCurrentWindow().setSize(new LogicalSize(POPUP_WIDTH, height));
+}
+
+function formatBps(value: number): string {
+  if (value >= 1024 ** 2) {
+    return `${(value / 1024 ** 2).toFixed(1)} MB/s`;
+  }
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} KB/s`;
+  }
+  return `${value.toFixed(0)} B/s`;
 }
 
 function LoadingRings() {
@@ -120,30 +134,172 @@ function ProviderCard({
   );
 }
 
+function SystemMetricRow({
+  label,
+  value,
+  percent,
+}: {
+  label: string;
+  value?: string;
+  percent?: number;
+}) {
+  if (percent != null) {
+    const p = Math.max(0, Math.min(100, percent));
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2 text-[10px]">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-medium tabular-nums text-foreground">{p.toFixed(0)}%</span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full ${usageBarColor(p)}`}
+            style={{ width: `${p}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 text-[10px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="truncate font-medium tabular-nums text-foreground">{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function SystemSection({
+  enabled,
+  metrics,
+  loading,
+}: {
+  enabled: boolean;
+  metrics: SystemMetricsResponse | null;
+  loading: boolean;
+}) {
+  if (!enabled) {
+    return null;
+  }
+
+  const hasData =
+    metrics &&
+    (metrics.cpu ||
+      metrics.memory ||
+      metrics.disk ||
+      metrics.network ||
+      metrics.cpu_temperature ||
+      metrics.battery_temperature ||
+      metrics.fan);
+
+  return (
+    <section className="usage-popup-card rounded-xl p-2.5">
+      <div className="mb-2 flex items-center gap-2">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/30 to-blue-500/20 ring-1 ring-sky-400/20">
+          <Activity className="size-3.5 text-sky-300" />
+        </div>
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">System</p>
+        {metrics?.updated_at ? (
+          <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">
+            {new Date(metrics.updated_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        ) : null}
+      </div>
+
+      {loading && !hasData ? (
+        <div className="space-y-2 py-1">
+          {[0, 1, 2].map((key) => (
+            <div key={key} className="h-3 animate-pulse rounded bg-muted" />
+          ))}
+        </div>
+      ) : metrics && !metrics.ok && metrics.error ? (
+        <ProviderError message={metrics.error} />
+      ) : hasData ? (
+        <div className="space-y-2">
+          {metrics.cpu?.status === "ok" && metrics.cpu.usage_percent != null ? (
+            <SystemMetricRow label="CPU" percent={metrics.cpu.usage_percent} />
+          ) : null}
+          {metrics.memory?.status === "ok" && metrics.memory.used_percent != null ? (
+            <SystemMetricRow label="RAM" percent={metrics.memory.used_percent} />
+          ) : null}
+          {metrics.disk?.status === "ok" && metrics.disk.used_percent != null ? (
+            <SystemMetricRow label="Disk" percent={metrics.disk.used_percent} />
+          ) : null}
+          {metrics.network?.status === "ok" ? (
+            <SystemMetricRow
+              label="Mạng"
+              value={`↓${formatBps(metrics.network.download_bps ?? 0)} ↑${formatBps(metrics.network.upload_bps ?? 0)}`}
+            />
+          ) : null}
+          {metrics.cpu_temperature ? (
+            <SystemMetricRow
+              label="Nhiệt CPU"
+              value={
+                metrics.cpu_temperature.status === "ok" && metrics.cpu_temperature.celsius != null
+                  ? `${metrics.cpu_temperature.celsius.toFixed(0)}°C`
+                  : metrics.cpu_temperature.message ?? "N/A"
+              }
+            />
+          ) : null}
+          {metrics.battery_temperature ? (
+            <SystemMetricRow
+              label="Nhiệt pin"
+              value={
+                metrics.battery_temperature.status === "ok" &&
+                metrics.battery_temperature.celsius != null
+                  ? `${metrics.battery_temperature.celsius.toFixed(0)}°C`
+                  : metrics.battery_temperature.message ?? "N/A"
+              }
+            />
+          ) : null}
+          {metrics.fan ? (
+            <SystemMetricRow
+              label="Quạt"
+              value={
+                metrics.fan.status === "ok" && metrics.fan.rpm != null
+                  ? `${metrics.fan.rpm} RPM`
+                  : metrics.fan.message ?? "N/A"
+              }
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function UsagePopup() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [claudeUsage, setClaudeUsage] = useState<UsageMonitorResponse | null>(null);
   const [codexUsage, setCodexUsage] = useState<UsageMonitorResponse | null>(null);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetricsResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const claudeEnabled = Boolean(config?.usage_monitor_enabled);
   const codexEnabled = Boolean(config?.codex_usage_monitor_enabled);
-  const anyEnabled = claudeEnabled || codexEnabled;
-  const providerCount = Number(claudeEnabled) + Number(codexEnabled);
+  const systemEnabled = systemMetricsAnyEnabled(config?.system_metrics);
+  const anyEnabled = claudeEnabled || codexEnabled || systemEnabled;
+  const sectionCount = Number(claudeEnabled) + Number(codexEnabled) + Number(systemEnabled);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
       const cfg = await getConfig();
       setConfig(cfg);
+      const sysOn = systemMetricsAnyEnabled(cfg.system_metrics);
 
-      const [claude, codex] = await Promise.all([
+      const [claude, codex, system] = await Promise.all([
         cfg.usage_monitor_enabled ? getClaudeUsageStatus() : Promise.resolve(null),
         cfg.codex_usage_monitor_enabled ? getCodexUsageStatus() : Promise.resolve(null),
+        sysOn ? getSystemMetricsStatus() : Promise.resolve(null),
       ]);
       setClaudeUsage(claude);
       setCodexUsage(codex);
+      setSystemMetrics(system);
     } finally {
       setLoading(false);
       requestAnimationFrame(() => {
@@ -208,7 +364,7 @@ export function UsagePopup() {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [anyEnabled, providerCount, claudeUsage, codexUsage, loading, config]);
+  }, [anyEnabled, sectionCount, claudeUsage, codexUsage, systemMetrics, loading, config]);
 
   const openSettings = async () => {
     await showDashboard("settings");
@@ -223,7 +379,7 @@ export function UsagePopup() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               TrayLink
             </p>
-            <h1 className="text-sm font-semibold text-foreground">AI Quota</h1>
+            <h1 className="text-sm font-semibold text-foreground">Monitor</h1>
           </div>
           <div className="flex items-center gap-1.5">
             <ThemeToggle compact />
@@ -245,9 +401,9 @@ export function UsagePopup() {
               <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-xl bg-muted">
                 <Settings2 className="size-4 text-muted-foreground" />
               </div>
-              <p className="text-xs font-medium text-foreground">Chưa bật theo dõi quota</p>
+              <p className="text-xs font-medium text-foreground">Chưa bật theo dõi</p>
               <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                Bật Claude hoặc Codex trong Settings.
+                Bật AI quota hoặc System metrics trong Settings.
               </p>
             </div>
           ) : (
@@ -270,6 +426,7 @@ export function UsagePopup() {
                 usage={codexUsage}
                 loading={loading}
               />
+              <SystemSection enabled={systemEnabled} metrics={systemMetrics} loading={loading} />
             </>
           )}
         </div>

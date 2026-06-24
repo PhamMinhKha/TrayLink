@@ -19,6 +19,7 @@ import {
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { ClaudeUsagePanel } from "@/components/ClaudeUsagePanel";
 import { CodexUsagePanel } from "@/components/CodexUsagePanel";
+import { SystemMetricsPanel } from "@/components/SystemMetricsPanel";
 import { ThemeModeSwitch } from "@/components/ThemeToggle";
 
 function authHeader(requireToken: boolean, token: string, showToken: boolean) {
@@ -228,6 +229,8 @@ export function SettingsPanel() {
       <ClaudeUsagePanel />
 
       <CodexUsagePanel />
+
+      <SystemMetricsPanel />
 
       <AccessibilityPanel />
 

@@ -38,6 +38,29 @@ export interface RemoteDeckLayout {
   custom_icons: Record<string, string>;
 }
 
+export interface SystemMetricsPreferences {
+  cpu?: boolean;
+  memory?: boolean;
+  disk?: boolean;
+  network?: boolean;
+  cpu_temperature?: boolean;
+  battery_temperature?: boolean;
+  fan_speed?: boolean;
+}
+
+export function systemMetricsAnyEnabled(prefs?: SystemMetricsPreferences | null): boolean {
+  if (!prefs) return false;
+  return Boolean(
+    prefs.cpu ||
+      prefs.memory ||
+      prefs.disk ||
+      prefs.network ||
+      prefs.cpu_temperature ||
+      prefs.battery_temperature ||
+      prefs.fan_speed,
+  );
+}
+
 export interface AppConfig {
   port: number;
   token: string;
@@ -45,6 +68,7 @@ export interface AppConfig {
   allow_get?: boolean;
   usage_monitor_enabled?: boolean;
   codex_usage_monitor_enabled?: boolean;
+  system_metrics?: SystemMetricsPreferences;
   autostart: boolean;
   apps: Record<string, AppEntry>;
   commands: Record<string, ExecEntry>;
@@ -94,6 +118,65 @@ export interface UsageMonitorResponse {
   error?: string | null;
 }
 
+export type MetricStatus = "ok" | "unsupported" | "error";
+
+export interface MetricCpu {
+  status: MetricStatus;
+  message?: string | null;
+  usage_percent?: number | null;
+}
+
+export interface MetricMemory {
+  status: MetricStatus;
+  message?: string | null;
+  used_percent?: number | null;
+  used_bytes?: number | null;
+  total_bytes?: number | null;
+}
+
+export interface MetricDisk {
+  status: MetricStatus;
+  message?: string | null;
+  name?: string | null;
+  mount_point?: string | null;
+  used_percent?: number | null;
+  available_bytes?: number | null;
+  total_bytes?: number | null;
+}
+
+export interface MetricNetwork {
+  status: MetricStatus;
+  message?: string | null;
+  upload_bps?: number | null;
+  download_bps?: number | null;
+}
+
+export interface MetricTemperature {
+  status: MetricStatus;
+  message?: string | null;
+  celsius?: number | null;
+}
+
+export interface MetricFan {
+  status: MetricStatus;
+  message?: string | null;
+  rpm?: number | null;
+}
+
+export interface SystemMetricsResponse {
+  enabled: boolean;
+  ok: boolean;
+  updated_at?: string | null;
+  error?: string | null;
+  cpu?: MetricCpu | null;
+  memory?: MetricMemory | null;
+  disk?: MetricDisk | null;
+  network?: MetricNetwork | null;
+  cpu_temperature?: MetricTemperature | null;
+  battery_temperature?: MetricTemperature | null;
+  fan?: MetricFan | null;
+}
+
 export interface ClaudeDiagnosticItem {
   label: string;
   status: string;
@@ -109,6 +192,7 @@ export interface ClaudeDiagnosticsResponse {
   credentials_path?: string | null;
   credentials_file_exists: boolean;
   credentials_token_found: boolean;
+  auth_store_label?: string;
   summary: string;
   recommendation: string;
   findings: ClaudeDiagnosticItem[];
@@ -185,6 +269,10 @@ export async function getClaudeDiagnostics(): Promise<ClaudeDiagnosticsResponse>
 
 export async function getCodexUsageStatus(): Promise<UsageMonitorResponse> {
   return invoke<UsageMonitorResponse>("get_codex_usage_status");
+}
+
+export async function getSystemMetricsStatus(): Promise<SystemMetricsResponse> {
+  return invoke<SystemMetricsResponse>("get_system_metrics_status");
 }
 
 async function fetchStatusFromApi(port: number): Promise<StatusResponse> {

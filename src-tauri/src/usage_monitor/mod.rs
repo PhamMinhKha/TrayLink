@@ -1,4 +1,10 @@
-use std::path::PathBuf;
+mod auth;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(windows)]
+mod windows;
+
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -6,15 +12,16 @@ use chrono::{DateTime, Utc};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde::Serialize;
 
+use auth::{
+    claude_config_dir, claude_json_path, credentials_path, read_token_from_claude_json,
+    read_token_from_env, read_token_from_file,
+};
+
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
-const CREDENTIALS_PATH: &str = ".claude/.credentials.json";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 const ANTHROPIC_BETA: &str = "oauth-2025-04-20";
 const USER_AGENT_VALUE: &str = "claude-code/2.1.5";
 const MODEL: &str = "claude-haiku-4-5-20251001";
-const KEYCHAIN_SERVICES: &[&str] = &["Claude Code-credentials", "Claude Code", "Claude"];
-const CLAUDE_APP_PATH: &str = "/Applications/Claude.app";
-const CLAUDE_APP_EXECUTABLE: &str = "/Applications/Claude.app/Contents/MacOS/Claude";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UsageWindow {
@@ -53,6 +60,7 @@ pub struct ClaudeDiagnosticsResponse {
     pub credentials_path: Option<String>,
     pub credentials_file_exists: bool,
     pub credentials_token_found: bool,
+    pub auth_store_label: String,
     pub summary: String,
     pub recommendation: String,
     pub findings: Vec<ClaudeDiagnosticItem>,
@@ -72,126 +80,148 @@ impl UsageMonitorResponse {
     }
 }
 
-fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-}
-
-fn credentials_path() -> Option<PathBuf> {
-    home_dir().map(|home| home.join(CREDENTIALS_PATH))
-}
-
-fn extract_access_token(blob: &str) -> Option<String> {
-    let blob = blob.trim();
-    if blob.is_empty() {
-        return None;
-    }
-
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) {
-        if let Some(token) = value.get("accessToken").and_then(|v| v.as_str()) {
-            return Some(token.to_string());
-        }
-
-        if let Some(token) = value.get("access_token").and_then(|v| v.as_str()) {
-            return Some(token.to_string());
-        }
-
-        if let Some(obj) = value.as_object() {
-            for nested in obj.values() {
-                if let Some(token) = nested.get("accessToken").and_then(|v| v.as_str()) {
-                    return Some(token.to_string());
-                }
-                if let Some(token) = nested.get("access_token").and_then(|v| v.as_str()) {
-                    return Some(token.to_string());
-                }
-            }
-        }
-    }
-
-    let needle = "\"accessToken\":\"";
-    if let Some(start) = blob.find(needle) {
-        let rest = &blob[start + needle.len()..];
-        if let Some(end) = rest.find('"') {
-            return Some(rest[..end].to_string());
-        }
-    }
-
-    if !blob.starts_with('{')
-        && !blob.starts_with('[')
-        && blob.len() > 20
-        && blob
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '~' | '+' | '/' | '='))
-    {
-        return Some(blob.to_string());
-    }
-
-    None
-}
-
-fn read_token_from_keychain() -> Result<Option<String>, String> {
-    let user = std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
-        .map_err(|e| e.to_string())?;
-
-    for service in KEYCHAIN_SERVICES {
-        let output = Command::new("security")
-            .args([
-                "find-generic-password",
-                "-s",
-                service,
-                "-a",
-                &user,
-                "-w",
-            ])
-            .output()
-            .map_err(|e| e.to_string())?;
-
-        if output.status.success() {
-            let raw = String::from_utf8_lossy(&output.stdout);
-            if let Some(token) = extract_access_token(&raw) {
-                return Ok(Some(token));
-            }
-        }
-    }
-
-    Ok(None)
-}
-
 fn claude_cli_on_path() -> bool {
-    Command::new("sh")
-        .args(["-lc", "command -v claude >/dev/null 2>&1"])
-        .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
+    #[cfg(windows)]
+    {
+        return Command::new("where")
+            .arg("claude")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false);
+    }
+
+    #[cfg(not(windows))]
+    {
+        Command::new("sh")
+            .args(["-lc", "command -v claude >/dev/null 2>&1"])
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+}
+
+fn read_token_from_secure_store() -> Result<Option<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::read_token_from_secure_store();
+    }
+
+    #[cfg(windows)]
+    {
+        return windows::read_token_from_secure_store();
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        Ok(None)
+    }
+}
+
+fn secure_store_targets() -> Vec<String> {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::secure_store_targets();
+    }
+
+    #[cfg(windows)]
+    {
+        return windows::secure_store_targets();
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        Vec::new()
+    }
+}
+
+fn secure_store_label() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::secure_store_label();
+    }
+
+    #[cfg(windows)]
+    {
+        return windows::secure_store_label();
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        "Secure store"
+    }
+}
+
+fn claude_desktop_installed() -> (bool, bool) {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::claude_desktop_installed();
+    }
+
+    #[cfg(windows)]
+    {
+        return windows::claude_desktop_installed();
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        (false, false)
+    }
+}
+
+fn claude_desktop_detail(installed: bool) -> String {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::claude_desktop_detail(installed);
+    }
+
+    #[cfg(windows)]
+    {
+        return windows::claude_desktop_detail(installed);
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        if installed {
+            "Phát hiện Claude Desktop.".to_string()
+        } else {
+            "Không thấy Claude Desktop.".to_string()
+        }
+    }
 }
 
 fn build_claude_diagnostics() -> ClaudeDiagnosticsResponse {
-    let claude_app_installed = std::path::Path::new(CLAUDE_APP_PATH).exists();
-    let claude_app_executable = std::path::Path::new(CLAUDE_APP_EXECUTABLE).exists();
-    let keychain_token_found = read_token_from_keychain().ok().flatten().is_some();
+    let (claude_app_installed, claude_app_executable) = claude_desktop_installed();
+    let secure_store_targets = secure_store_targets();
+    let secure_store_token_found = read_token_from_secure_store()
+        .ok()
+        .flatten()
+        .is_some();
+    let env_token_found = read_token_from_env().is_some();
     let credentials_path = credentials_path().map(|path| path.display().to_string());
+    let claude_json = claude_json_path().map(|path| path.display().to_string());
+    let config_dir = claude_config_dir().map(|path| path.display().to_string());
     let credentials_file_exists = credentials_path
         .as_deref()
         .map(std::path::Path::new)
         .is_some_and(|path| path.exists());
     let credentials_token_found = read_token_from_file().ok().flatten().is_some();
+    let claude_json_exists = claude_json
+        .as_deref()
+        .map(std::path::Path::new)
+        .is_some_and(|path| path.exists());
+    let claude_json_token_found = read_token_from_claude_json().ok().flatten().is_some();
     let claude_cli_on_path = claude_cli_on_path();
+    let auth_store_label = secure_store_label().to_string();
 
     let mut findings = Vec::new();
     findings.push(ClaudeDiagnosticItem {
-        label: "Claude.app".to_string(),
+        label: "Claude Desktop".to_string(),
         status: if claude_app_installed {
             "detected".to_string()
         } else {
             "not found".to_string()
         },
-        detail: if claude_app_installed {
-            "Bạn đang dùng Claude Desktop app trên macOS.".to_string()
-        } else {
-            "Không thấy /Applications/Claude.app.".to_string()
-        },
+        detail: claude_desktop_detail(claude_app_installed),
     });
     findings.push(ClaudeDiagnosticItem {
         label: "Claude CLI".to_string(),
@@ -203,19 +233,19 @@ fn build_claude_diagnostics() -> ClaudeDiagnosticsResponse {
         detail: if claude_cli_on_path {
             "Có lệnh `claude` trong PATH.".to_string()
         } else {
-            "Không thấy `claude` CLI trong PATH.".to_string()
+            "Không thấy `claude` CLI trong PATH. Cài Claude Code CLI rồi chạy `claude login`.".to_string()
         },
     });
     findings.push(ClaudeDiagnosticItem {
-        label: "Keychain".to_string(),
-        status: if keychain_token_found {
+        label: auth_store_label.clone(),
+        status: if secure_store_token_found {
             "token found".to_string()
         } else {
             "no token".to_string()
         },
         detail: format!(
-            "Đã kiểm tra các service: {}.",
-            KEYCHAIN_SERVICES.join(", ")
+            "Đã kiểm tra các target: {}.",
+            secure_store_targets.join(", ")
         ),
     });
     findings.push(ClaudeDiagnosticItem {
@@ -234,32 +264,67 @@ fn build_claude_diagnostics() -> ClaudeDiagnosticsResponse {
             .map(|path| format!("Đường dẫn kiểm tra: {path}"))
             .unwrap_or_else(|| "Không xác định được đường dẫn credentials.".to_string()),
     });
+    findings.push(ClaudeDiagnosticItem {
+        label: ".claude.json".to_string(),
+        status: if claude_json_token_found {
+            "token found".to_string()
+        } else if claude_json_exists {
+            "file found".to_string()
+        } else {
+            "missing".to_string()
+        },
+        detail: claude_json
+            .as_ref()
+            .map(|path| format!("Đường dẫn kiểm tra: {path}"))
+            .unwrap_or_else(|| "Không xác định được đường dẫn .claude.json.".to_string()),
+    });
+    if env_token_found {
+        findings.push(ClaudeDiagnosticItem {
+            label: "CLAUDE_CODE_OAUTH_TOKEN".to_string(),
+            status: "token found".to_string(),
+            detail: "Biến môi trường CLAUDE_CODE_OAUTH_TOKEN đang được đặt.".to_string(),
+        });
+    }
 
-    let summary = if keychain_token_found || credentials_token_found {
+    let has_token = secure_store_token_found
+        || credentials_token_found
+        || claude_json_token_found
+        || env_token_found;
+    let summary = if has_token {
         "Đã tìm thấy nguồn auth Claude Code phù hợp.".to_string()
-    } else if claude_app_installed {
-        "Phát hiện Claude Desktop, nhưng không tìm thấy token Claude Code CLI.".to_string()
+    } else if claude_app_installed && !claude_cli_on_path {
+        "Phát hiện Claude Desktop, nhưng chưa thấy token Claude Code CLI.".to_string()
     } else {
         "Không tìm thấy nguồn auth Claude Code nào trên máy này.".to_string()
     };
 
-    let recommendation = if claude_app_installed {
-        "TrayLink hiện đọc token Claude Code CLI để lấy usage. Nếu bạn chỉ dùng Claude Desktop app thì monitor này không có token để đọc. Hãy cài và đăng nhập Claude Code CLI, hoặc nếu muốn mình có thể giúp đổi panel này thành chỉ báo rằng Claude Desktop không được hỗ trợ.".to_string()
+    let recommendation = if has_token {
+        "Token đã sẵn sàng. Nếu quota vẫn lỗi, thử chạy `claude login` để làm mới token.".to_string()
     } else if claude_cli_on_path {
-        "Mở Claude Code CLI, chạy /login nếu cần, rồi bật lại theo dõi usage.".to_string()
+        "Mở terminal, chạy `claude login`, rồi bật lại theo dõi usage.".to_string()
     } else {
-        "Cài Claude Code CLI và đăng nhập trên máy này, rồi mở lại TrayLink.".to_string()
+        #[cfg(windows)]
+        let install_hint = "Cài Claude Code CLI trên Windows (npm i -g @anthropic-ai/claude-code hoặc installer chính thức), chạy `claude login`, rồi mở lại TrayLink. Nếu login báo thành công nhưng không có file credentials, xóa thư mục `*.lock` trong %USERPROFILE%\\.claude rồi login lại.";
+        #[cfg(not(windows))]
+        let install_hint = "Cài Claude Code CLI và đăng nhập trên máy này, rồi mở lại TrayLink.";
+
+        if let Some(dir) = config_dir {
+            format!("{install_hint} Thư mục cấu hình Claude: {dir}.")
+        } else {
+            install_hint.to_string()
+        }
     };
 
     ClaudeDiagnosticsResponse {
         claude_app_installed,
         claude_app_executable,
         claude_cli_on_path,
-        keychain_services_checked: KEYCHAIN_SERVICES.iter().map(|s| s.to_string()).collect(),
-        keychain_token_found,
+        keychain_services_checked: secure_store_targets,
+        keychain_token_found: secure_store_token_found,
         credentials_path,
         credentials_file_exists,
         credentials_token_found,
+        auth_store_label,
         summary,
         recommendation,
         findings,
@@ -275,25 +340,17 @@ fn build_missing_token_error() -> String {
     format!("{} {}", diag.summary, diag.recommendation)
 }
 
-fn read_token_from_file() -> Result<Option<String>, String> {
-    let path = match credentials_path() {
-        Some(path) => path,
-        None => return Ok(None),
-    };
-
-    let raw = match std::fs::read_to_string(&path) {
-        Ok(raw) => raw,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(err) => return Err(err.to_string()),
-    };
-
-    Ok(extract_access_token(&raw))
-}
-
 pub fn read_access_token() -> Result<String, String> {
+    if let Some(token) = read_token_from_env() {
+        return Ok(token);
+    }
+
     #[cfg(target_os = "macos")]
     {
-        if let Some(token) = read_token_from_keychain()? {
+        if let Some(token) = read_token_from_secure_store()? {
+            return Ok(token);
+        }
+        if let Some(token) = read_token_from_file()? {
             return Ok(token);
         }
     }
@@ -303,11 +360,10 @@ pub fn read_access_token() -> Result<String, String> {
         if let Some(token) = read_token_from_file()? {
             return Ok(token);
         }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(token) = read_token_from_file()? {
+        if let Some(token) = read_token_from_claude_json()? {
+            return Ok(token);
+        }
+        if let Some(token) = read_token_from_secure_store()? {
             return Ok(token);
         }
     }
@@ -448,5 +504,16 @@ pub async fn get_usage_status(enabled: bool) -> Result<UsageMonitorResponse, Str
             ok: false,
             error: Some(error),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::auth::extract_access_token;
+
+    #[test]
+    fn token_priority_supports_claude_ai_oauth_shape() {
+        let raw = r#"{"claudeAiOauth":{"accessToken":"oauth-token"}}"#;
+        assert_eq!(extract_access_token(raw).as_deref(), Some("oauth-token"));
     }
 }
