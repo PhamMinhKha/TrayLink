@@ -143,6 +143,10 @@ export async function getConfig(): Promise<AppConfig> {
   return invoke<AppConfig>("get_config");
 }
 
+export async function showDashboard(tab?: string): Promise<void> {
+  return invoke("show_dashboard", { tab: tab ?? null });
+}
+
 export async function updateConfig(config: AppConfig): Promise<void> {
   return invoke("update_config", { config });
 }

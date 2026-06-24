@@ -642,7 +642,9 @@ async fn fetch_usage(access_token: &str, account_id: Option<&str>) -> Result<Cod
             let text = response.text().await.map_err(|e| e.to_string())?;
             parse_usage_response_body(&text)
         }
-        401 | 403 => Err("The Codex usage API request returned unauthorized.".to_string()),
+        401 | 403 => Err(
+            "Token Codex không hợp lệ hoặc đã hết hạn. Đăng nhập lại Codex rồi thử lại.".to_string(),
+        ),
         code => {
             let text = response.text().await.unwrap_or_default();
             if text.is_empty() {

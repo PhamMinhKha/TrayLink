@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
-    AppHandle, Manager,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, PhysicalPosition, Rect,
 };
 
 use crate::api::server::restart_server;
@@ -31,11 +31,56 @@ pub fn hide_main_window(app: &AppHandle) {
     hide_from_dock(app);
 }
 
+fn position_usage_popup(window: &tauri::WebviewWindow, anchor: Option<Rect>) {
+    if let Some(rect) = anchor {
+        let (x, y, height) = match (rect.position, rect.size) {
+            (tauri::Position::Physical(pos), tauri::Size::Physical(size)) => {
+                (pos.x, pos.y, size.height as i32)
+            }
+            (tauri::Position::Logical(pos), tauri::Size::Logical(size)) => {
+                (pos.x as i32, pos.y as i32, size.height as i32)
+            }
+            (tauri::Position::Physical(pos), tauri::Size::Logical(size)) => {
+                (pos.x, pos.y, size.height as i32)
+            }
+            (tauri::Position::Logical(pos), tauri::Size::Physical(size)) => {
+                (pos.x as i32, pos.y as i32, size.height as i32)
+            }
+        };
+        let _ = window.set_position(PhysicalPosition::new(x, y + height + 4));
+        return;
+    }
+
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let screen = monitor.size();
+        let width = window.outer_size().map(|size| size.width).unwrap_or(340);
+        let x = screen.width as i32 - width as i32 - 12;
+        let _ = window.set_position(PhysicalPosition::new(x, 24));
+    }
+}
+
+pub fn toggle_usage_popup(app: &AppHandle, anchor: Option<Rect>) {
+    let Some(window) = app.get_webview_window("usage-popup") else {
+        return;
+    };
+
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.hide();
+        return;
+    }
+
+    position_usage_popup(&window, anchor);
+    let _ = window.show();
+    let _ = window.set_focus();
+    hide_from_dock(app);
+}
+
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let open_item = MenuItem::with_id(app, "open", "Open Dashboard", true, None::<&str>)?;
     let restart_item = MenuItem::with_id(app, "restart", "Restart Server", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open_item, &restart_item, &quit_item])?;
+    let menu = Menu::with_items(app, &[&usage_item, &open_item, &restart_item, &quit_item])?;
 
     let icon = app
         .default_window_icon()
@@ -45,8 +90,10 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     TrayIconBuilder::new()
         .icon(icon)
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .tooltip("TrayLink")
         .on_menu_event(|app, event| match event.id.as_ref() {
+            "usage" => toggle_usage_popup(app, None),
             "open" => show_main_window(app),
             "restart" => {
                 if let Some(state) = app.try_state::<std::sync::Arc<crate::state::AppState>>() {
@@ -63,6 +110,17 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 app.exit(0);
             }
             _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                rect,
+                ..
+            } = event
+            {
+                toggle_usage_popup(tray.app_handle(), Some(rect));
+            }
         })
         .build(app)?;
 

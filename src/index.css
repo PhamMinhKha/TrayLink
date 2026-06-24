@@ -78,3 +78,102 @@
     @apply bg-background text-foreground;
   }
 }
+
+.traylink-theme:not(.dark) {
+  color-scheme: light;
+}
+
+.dark.traylink-theme {
+  color-scheme: dark;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #121c31;
+  --card-foreground: #e2e8f0;
+  --popover: #121c31;
+  --popover-foreground: #e2e8f0;
+  --primary: #38bdf8;
+  --primary-foreground: #0b1220;
+  --secondary: #1a2438;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1a2438;
+  --muted-foreground: #94a3b8;
+  --accent: #1e3a52;
+  --accent-foreground: #7dd3fc;
+  --destructive: #fb7185;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(56, 189, 248, 0.45);
+}
+
+.traylink-app-shell {
+  background: var(--background);
+}
+
+.dark.traylink-theme.traylink-app-shell {
+  background: linear-gradient(165deg, #0f172a 0%, #0a0f1c 45%, #070b14 100%);
+}
+
+.traylink-app-shell [data-slot="card"] {
+  box-shadow: none;
+}
+
+.dark.traylink-theme.traylink-app-shell [data-slot="card"] {
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.usage-popup-page,
+.usage-popup-page body,
+.usage-popup-page #root {
+  margin: 0;
+  overflow: hidden;
+}
+
+.usage-popup-page:not(.dark),
+.usage-popup-page:not(.dark) body,
+.usage-popup-page:not(.dark) #root {
+  background: var(--background) !important;
+}
+
+.usage-popup-page.dark,
+.usage-popup-page.dark body,
+.usage-popup-page.dark #root {
+  background: #0f172a !important;
+}
+
+.usage-popup-root {
+  box-sizing: border-box;
+  width: 340px;
+  overflow: hidden;
+  background: var(--background);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.dark .usage-popup-root {
+  background: linear-gradient(165deg, #0f172a 0%, #0a0f1c 45%, #070b14 100%);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 24px 48px rgba(0, 0, 0, 0.55);
+}
+
+.usage-popup-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.dark .usage-popup-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.usage-ring-track {
+  stroke: rgba(15, 23, 42, 0.12);
+}
+
+.dark .usage-ring-track {
+  stroke: rgba(255, 255, 255, 0.08);
+}

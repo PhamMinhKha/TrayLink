@@ -407,16 +407,15 @@ pub async fn collect_claude_usage() -> Result<UsageMonitorResponse, String> {
 
     if !response.status().is_success() {
         let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(format!(
-            "Claude usage request failed: HTTP {}{}",
-            status.as_u16(),
-            if text.is_empty() {
-                String::new()
-            } else {
-                format!(" - {}", text.chars().take(160).collect::<String>())
+        return Err(match status.as_u16() {
+            401 | 403 => {
+                "Token Claude Code không hợp lệ hoặc đã hết hạn. Chạy `claude login` để đăng nhập lại."
+                    .to_string()
             }
-        ));
+            code => format!(
+                "Không lấy được quota Claude Code (HTTP {code}). Thử lại sau."
+            ),
+        });
     }
 
     let headers = response.headers().clone();

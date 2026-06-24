@@ -19,6 +19,7 @@ import {
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { ClaudeUsagePanel } from "@/components/ClaudeUsagePanel";
 import { CodexUsagePanel } from "@/components/CodexUsagePanel";
+import { ThemeModeSwitch } from "@/components/ThemeToggle";
 
 function authHeader(requireToken: boolean, token: string, showToken: boolean) {
   if (!requireToken) {
@@ -137,6 +138,16 @@ export function SettingsPanel() {
           <CardTitle>Cài đặt</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Giao diện</Label>
+            <p className="text-sm text-muted-foreground">
+              Light / Dark áp dụng cho dashboard và popup tray.
+            </p>
+            <ThemeModeSwitch />
+          </div>
+
+          <Separator />
+
           <div className="space-y-2">
             <Label htmlFor="port">Port</Label>
             <div className="flex gap-2">

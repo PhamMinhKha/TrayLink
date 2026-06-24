@@ -7,6 +7,26 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-06-25
+
+### Added
+
+- **Popup tray AI Quota** — click trái icon tray xem vòng % quota **Claude Code** và **Codex** (5 giờ / 7 ngày); click phải vẫn mở menu (thêm mục **Usage**)
+- Cửa sổ popup riêng (`usage-popup`) — gauge tròn, làm mới, nút **Mở Settings**
+- **Light / Dark theme** — toggle ở header dashboard, popup tray và mục **Giao diện** trong Settings; lưu `localStorage`, đồng bộ realtime giữa các cửa sổ qua event Tauri
+- Theme **`traylink-theme`**: dark navy gradient; light dùng palette shadcn mặc định (dịu, không chói)
+- Command `show_dashboard(tab?)` — popup mở thẳng tab Settings
+
+### Changed
+
+- Dashboard dùng theme đồng bộ với popup thay vì chỉ light mặc định
+- Thông báo lỗi quota Claude/Codex gọn, tiếng Việt (không dump JSON API)
+
+### Fixed
+
+- **Server không khởi động** sau v0.1.19 — xung đột rustls `ring` / `aws-lc-rs` khi thêm `reqwest`; dùng `rustls-tls-webpki-roots-no-provider` + `install_default()`
+- Popup tự co giãn chiều cao theo nội dung, không scroll; nền opaque tránh góc trắng trên macOS
+
 ## [0.1.15] - 2026-05-28
 
 ### Added
@@ -204,6 +224,7 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `open-file` chặn path traversal và system paths
 - `exec` chỉ chấp nhận command key, không chạy raw shell
 
+[0.1.20]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.20
 [0.1.15]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.15
 [0.1.14]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.14
 [0.1.13]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.13

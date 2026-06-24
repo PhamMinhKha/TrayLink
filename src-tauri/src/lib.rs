@@ -17,12 +17,21 @@ mod uploads;
 
 use std::sync::Arc;
 
+use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
 
 use crate::api::server::{restart_server, start_server};
 use crate::config::store::{load_config, save_config};
 use crate::state::AppState;
+
+#[tauri::command]
+fn show_dashboard(app: tauri::AppHandle, tab: Option<String>) {
+    tray::show_main_window(&app);
+    if let Some(tab) = tab.filter(|value| !value.is_empty()) {
+        let _ = app.emit("navigate-tab", tab);
+    }
+}
 
 #[tauri::command]
 fn get_config(state: tauri::State<'_, Arc<AppState>>) -> config::AppConfig {
@@ -416,6 +425,8 @@ fn test_hotkey_input(app: tauri::AppHandle) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     #[cfg(all(target_os = "macos", debug_assertions))]
     macos::accessibility::ensure_stable_dev_signature();
 
@@ -464,6 +475,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            show_dashboard,
             get_config,
             update_config,
             restart_api_server,

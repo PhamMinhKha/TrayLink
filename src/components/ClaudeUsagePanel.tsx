@@ -252,9 +252,12 @@ export function ClaudeUsagePanel() {
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {usage?.error ?? "Không lấy được dữ liệu quota."}
-            </p>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm font-medium text-destructive">Không lấy được quota</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {usage?.error ?? "Không lấy được dữ liệu quota."}
+              </p>
+            </div>
           </div>
         )}
 
