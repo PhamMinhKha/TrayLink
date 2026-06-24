@@ -3,6 +3,8 @@
   "token": "",
   "require_token": false,
   "allow_get": true,
+  "usage_monitor_enabled": false,
+  "codex_usage_monitor_enabled": false,
   "autostart": false,
   "apps": {},
   "commands": {

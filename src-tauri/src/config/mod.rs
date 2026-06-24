@@ -24,6 +24,14 @@ pub struct RemoteDeckLayout {
     pub custom_icons: HashMap<String, String>,
 }
 
+fn default_usage_monitor_enabled() -> bool {
+    false
+}
+
+fn default_codex_usage_monitor_enabled() -> bool {
+    false
+}
+
 impl RemoteDeckLayout {
     pub fn deck_items<'a>(
         app_keys: impl Iterator<Item = &'a str>,
@@ -140,6 +148,10 @@ pub struct AppConfig {
     pub require_token: bool,
     #[serde(default = "default_allow_get")]
     pub allow_get: bool,
+    #[serde(default = "default_usage_monitor_enabled")]
+    pub usage_monitor_enabled: bool,
+    #[serde(default = "default_codex_usage_monitor_enabled")]
+    pub codex_usage_monitor_enabled: bool,
     pub autostart: bool,
     pub apps: HashMap<String, AppEntry>,
     pub commands: HashMap<String, ExecEntry>,

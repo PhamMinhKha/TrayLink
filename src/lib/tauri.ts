@@ -43,6 +43,8 @@ export interface AppConfig {
   token: string;
   require_token?: boolean;
   allow_get?: boolean;
+  usage_monitor_enabled?: boolean;
+  codex_usage_monitor_enabled?: boolean;
   autostart: boolean;
   apps: Record<string, AppEntry>;
   commands: Record<string, ExecEntry>;
@@ -65,6 +67,51 @@ export interface StatusResponse {
   https_port: number;
   lan_ip?: string | null;
   error?: string | null;
+}
+
+export interface UsageWindow {
+  label: string;
+  used_percent: number;
+  remaining_percent: number;
+  reset_minutes: number;
+  status: string;
+}
+
+export interface UsageMonitorResponse {
+  enabled: boolean;
+  provider: string;
+  plan?: string | null;
+  account_id?: string | null;
+  updated_at?: string | null;
+  session_5h?: UsageWindow | null;
+  weekly_7d?: UsageWindow | null;
+  credits?: {
+    has_credits: boolean;
+    unlimited: boolean;
+    balance?: number | null;
+  } | null;
+  ok: boolean;
+  error?: string | null;
+}
+
+export interface ClaudeDiagnosticItem {
+  label: string;
+  status: string;
+  detail: string;
+}
+
+export interface ClaudeDiagnosticsResponse {
+  claude_app_installed: boolean;
+  claude_app_executable: boolean;
+  claude_cli_on_path: boolean;
+  keychain_services_checked: string[];
+  keychain_token_found: boolean;
+  credentials_path?: string | null;
+  credentials_file_exists: boolean;
+  credentials_token_found: boolean;
+  summary: string;
+  recommendation: string;
+  findings: ClaudeDiagnosticItem[];
 }
 
 export function apiHost(lanIp?: string | null): string {
@@ -122,6 +169,18 @@ export async function getAutostartEnabled(): Promise<boolean> {
 
 export async function getServerUptime(): Promise<number> {
   return invoke<number>("get_server_uptime");
+}
+
+export async function getClaudeUsageStatus(): Promise<UsageMonitorResponse> {
+  return invoke<UsageMonitorResponse>("get_claude_usage_status");
+}
+
+export async function getClaudeDiagnostics(): Promise<ClaudeDiagnosticsResponse> {
+  return invoke<ClaudeDiagnosticsResponse>("get_claude_diagnostics");
+}
+
+export async function getCodexUsageStatus(): Promise<UsageMonitorResponse> {
+  return invoke<UsageMonitorResponse>("get_codex_usage_status");
 }
 
 async function fetchStatusFromApi(port: number): Promise<StatusResponse> {

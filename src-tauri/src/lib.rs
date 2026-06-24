@@ -9,6 +9,8 @@ mod remote_icons;
 #[cfg(desktop)]
 mod shortcuts;
 mod tls;
+mod usage_monitor;
+mod codex_usage;
 mod state;
 mod tray;
 mod uploads;
@@ -101,6 +103,30 @@ fn get_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
 #[tauri::command]
 fn get_server_uptime(state: tauri::State<'_, Arc<AppState>>) -> i64 {
     state.uptime_seconds()
+}
+
+#[tauri::command]
+async fn get_claude_usage_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<usage_monitor::UsageMonitorResponse, String> {
+    let enabled = state.config.read().unwrap().usage_monitor_enabled;
+    usage_monitor::get_usage_status(enabled).await
+}
+
+#[tauri::command]
+fn get_claude_diagnostics() -> usage_monitor::ClaudeDiagnosticsResponse {
+    usage_monitor::diagnose_claude()
+}
+
+#[tauri::command]
+async fn get_codex_usage_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<codex_usage::UsageMonitorResponse, String> {
+    let enabled = {
+        let cfg = state.config.read().unwrap();
+        cfg.codex_usage_monitor_enabled
+    };
+    Ok(codex_usage::get_usage_status(enabled).await)
 }
 
 #[tauri::command]
@@ -447,6 +473,9 @@ pub fn run() {
             get_autostart_enabled,
             get_server_uptime,
             get_server_status,
+            get_claude_usage_status,
+            get_claude_diagnostics,
+            get_codex_usage_status,
             list_installed_apps_cmd,
             resolve_launch_path_cmd,
             list_browser_profiles,

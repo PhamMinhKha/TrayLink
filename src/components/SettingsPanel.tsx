@@ -17,6 +17,8 @@ import {
   updateConfig,
 } from "@/lib/tauri";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
+import { ClaudeUsagePanel } from "@/components/ClaudeUsagePanel";
+import { CodexUsagePanel } from "@/components/CodexUsagePanel";
 
 function authHeader(requireToken: boolean, token: string, showToken: boolean) {
   if (!requireToken) {
@@ -211,6 +213,10 @@ export function SettingsPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <ClaudeUsagePanel />
+
+      <CodexUsagePanel />
 
       <AccessibilityPanel />
 

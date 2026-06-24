@@ -21,6 +21,8 @@ use crate::launcher::{exec_cmd, open_app, open_file, LauncherError};
 use crate::launcher::hotkey;
 use crate::net;
 use crate::state::{LogEntry, SharedState, APP_VERSION};
+use crate::codex_usage;
+use crate::usage_monitor;
 
 #[derive(Serialize)]
 pub struct StatusResponse {
@@ -97,13 +99,15 @@ pub fn build_router(state: SharedState) -> Router {
         .merge(upload::routes())
         .route("/status", get(status))
         .route("/open-app", get(open_app_get).post(open_app_post))
-        .route("/open-file", get(open_file_get).post(open_file_post))
-        .route("/exec", get(exec_get).post(exec_post))
-        .route("/send-hotkey", get(send_hotkey_get).post(send_hotkey_post))
-        .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES as usize))
-        .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+    .route("/open-file", get(open_file_get).post(open_file_post))
+    .route("/exec", get(exec_get).post(exec_post))
+    .route("/send-hotkey", get(send_hotkey_get).post(send_hotkey_post))
+        .route("/claude-usage", get(claude_usage_get).post(claude_usage_post))
+        .route("/codex-usage", get(codex_usage_get).post(codex_usage_post))
+    .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES as usize))
+    .layer(CorsLayer::permissive())
+    .layer(TraceLayer::new_for_http())
+    .with_state(state)
 }
 
 async fn status(State(state): State<SharedState>) -> Json<StatusResponse> {
@@ -430,6 +434,186 @@ async fn send_hotkey_get(
     }
 
     handle_send_hotkey(&state, "GET", started, &ip, &query.app, &query.hotkey)
+}
+
+#[derive(Deserialize)]
+struct ClaudeUsageQuery {
+    #[serde(default)]
+    token: Option<String>,
+}
+
+async fn claude_usage_post(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+) -> Response {
+    let started = Instant::now();
+    if let Err(resp) = extract_token(&headers, None, &state) {
+        log_request(
+            &state,
+            "POST",
+            "/claude-usage",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_claude_usage(&state, "POST", started, &ip).await
+}
+
+async fn codex_usage_post(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+) -> Response {
+    let started = Instant::now();
+    if let Err(resp) = extract_token(&headers, None, &state) {
+        log_request(
+            &state,
+            "POST",
+            "/codex-usage",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_codex_usage(&state, "POST", started, &ip).await
+}
+
+async fn claude_usage_get(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+    Query(query): Query<ClaudeUsageQuery>,
+) -> Response {
+    let started = Instant::now();
+    if !state.config.read().unwrap().allow_get {
+        log_request(
+            &state,
+            "GET",
+            "/claude-usage",
+            405,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return reject_get_disabled();
+    }
+
+    if let Err(resp) = extract_token(&headers, query.token.as_deref(), &state) {
+        log_request(
+            &state,
+            "GET",
+            "/claude-usage",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_claude_usage(&state, "GET", started, &ip).await
+}
+
+#[derive(Deserialize)]
+struct CodexUsageQuery {
+    #[serde(default)]
+    token: Option<String>,
+}
+
+async fn codex_usage_get(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+    Query(query): Query<CodexUsageQuery>,
+) -> Response {
+    let started = Instant::now();
+    if !state.config.read().unwrap().allow_get {
+        log_request(
+            &state,
+            "GET",
+            "/codex-usage",
+            405,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return reject_get_disabled();
+    }
+
+    if let Err(resp) = extract_token(&headers, query.token.as_deref(), &state) {
+        log_request(
+            &state,
+            "GET",
+            "/codex-usage",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_codex_usage(&state, "GET", started, &ip).await
+}
+
+async fn handle_claude_usage(
+    state: &SharedState,
+    method: &str,
+    started: Instant,
+    client_ip: &str,
+) -> Response {
+    let enabled = state.config.read().unwrap().usage_monitor_enabled;
+    let result = usage_monitor::get_usage_status(enabled).await;
+
+    match result {
+        Ok(payload) => {
+            log_request(
+                state,
+                method,
+                "/claude-usage",
+                200,
+                started.elapsed().as_millis() as u64,
+                client_ip,
+            );
+            (StatusCode::OK, Json(payload)).into_response()
+        }
+        Err(err) => {
+            log_request(
+                state,
+                method,
+                "/claude-usage",
+                500,
+                started.elapsed().as_millis() as u64,
+                client_ip,
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": err })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn handle_codex_usage(
+    state: &SharedState,
+    method: &str,
+    started: Instant,
+    client_ip: &str,
+) -> Response {
+    let enabled = state.config.read().unwrap().codex_usage_monitor_enabled;
+    let payload = codex_usage::get_usage_status(enabled).await;
+    log_request(
+        state,
+        method,
+        "/codex-usage",
+        200,
+        started.elapsed().as_millis() as u64,
+        client_ip,
+    );
+    (StatusCode::OK, Json(payload)).into_response()
 }
 
 fn handle_send_hotkey(
