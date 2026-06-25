@@ -17,6 +17,8 @@ pub struct UsageWindow {
     pub used_percent: f64,
     pub remaining_percent: f64,
     pub reset_minutes: i64,
+    /// Unix timestamp (seconds) when the quota window resets; 0 if unknown.
+    pub reset_at: i64,
     pub status: String,
     pub limit_window_seconds: i64,
 }
@@ -436,15 +438,22 @@ fn extract_error_code(payload: &str) -> String {
         .to_string()
 }
 
+fn reset_minutes_from_timestamp(reset_at: i64) -> i64 {
+    if reset_at <= 0 {
+        return 0;
+    }
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0);
+    let minutes = ((reset_at - now) as f64 / 60.0).round() as i64;
+    minutes.max(0)
+}
+
 fn make_window(payload: &UsageWindowResponse) -> UsageWindow {
     let reset_at = if payload.reset_at.is_finite() && payload.reset_at > 0.0 {
-        let seconds = payload.reset_at.floor() as i64;
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|duration| duration.as_secs() as i64)
-            .unwrap_or(0);
-        let minutes = ((seconds - now) as f64 / 60.0).round() as i64;
-        minutes.max(0)
+        payload.reset_at.floor() as i64
     } else {
         0
     };
@@ -453,7 +462,8 @@ fn make_window(payload: &UsageWindowResponse) -> UsageWindow {
         label: String::new(),
         used_percent: payload.used_percent.clamp(0.0, 100.0),
         remaining_percent: (100.0 - payload.used_percent).clamp(0.0, 100.0),
-        reset_minutes: reset_at,
+        reset_minutes: reset_minutes_from_timestamp(reset_at),
+        reset_at,
         status: "unknown".to_string(),
         limit_window_seconds: payload.limit_window_seconds,
     }

@@ -29,6 +29,8 @@ pub struct UsageWindow {
     pub used_percent: f64,
     pub remaining_percent: f64,
     pub reset_minutes: i64,
+    /// Unix timestamp (seconds) when the quota window resets; 0 if unknown.
+    pub reset_at: i64,
     pub status: String,
 }
 
@@ -380,27 +382,29 @@ fn parse_percent(value: Option<&HeaderValue>) -> f64 {
     pct.clamp(0.0, 100.0)
 }
 
-fn parse_reset_minutes(value: Option<&HeaderValue>) -> i64 {
+fn parse_reset_at(value: Option<&HeaderValue>) -> i64 {
     let raw = match value.and_then(|v| v.to_str().ok()) {
         Some(raw) => raw.trim(),
         None => return 0,
     };
 
-    let reset_ts = match raw.parse::<f64>() {
-        Ok(value) => value,
-        Err(_) => return 0,
-    };
+    match raw.parse::<f64>() {
+        Ok(value) if value.is_finite() && value > 0.0 => value.floor() as i64,
+        _ => 0,
+    }
+}
+
+fn reset_minutes_from_timestamp(reset_at: i64) -> i64 {
+    if reset_at <= 0 {
+        return 0;
+    }
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs_f64())
-        .unwrap_or(0.0);
-    let minutes = (reset_ts - now) / 60.0;
-    if minutes <= 0.0 {
-        0
-    } else {
-        minutes.round() as i64
-    }
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0);
+    let minutes = ((reset_at - now) as f64 / 60.0).round() as i64;
+    minutes.max(0)
 }
 
 fn header_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a HeaderValue> {
@@ -415,12 +419,15 @@ fn window_from_headers(prefix: &str, headers: &HeaderMap, label: &str) -> UsageW
         .and_then(|value| value.to_str().ok())
         .unwrap_or("unknown")
         .to_string();
+    let reset_header = header_value(headers, &format!("{prefix}-reset"));
+    let reset_at = parse_reset_at(reset_header);
 
     UsageWindow {
         label: label.to_string(),
         used_percent,
         remaining_percent: (100.0 - used_percent).clamp(0.0, 100.0),
-        reset_minutes: parse_reset_minutes(header_value(headers, &format!("{prefix}-reset"))),
+        reset_minutes: reset_minutes_from_timestamp(reset_at),
+        reset_at,
         status,
     }
 }

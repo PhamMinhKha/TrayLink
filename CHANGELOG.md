@@ -7,6 +7,14 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Quota API** — mỗi usage window (`session_5h`, `weekly_7d`) thêm field **`reset_at`** (Unix timestamp giây) cạnh `reset_minutes`; áp dụng `/claude-usage`, `/codex-usage`, `/monitor-status`
+
+### Fixed
+
+- **Codex quota** — `reset_minutes` được tính đúng từ `reset_at` thay vì gán nhầm timestamp
+
 ## [0.1.23] - 2026-06-25
 
 ### Added

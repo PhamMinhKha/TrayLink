@@ -99,6 +99,8 @@ export interface UsageWindow {
   used_percent: number;
   remaining_percent: number;
   reset_minutes: number;
+  /** Unix timestamp (seconds) when the quota window resets; 0 if unknown. */
+  reset_at: number;
   status: string;
 }
 
