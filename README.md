@@ -241,7 +241,7 @@ curl http://192.168.1.x:8765/status
 Response:
 
 ```json
-{ "online": true, "version": "0.1.23", "port": 8765, "https_port": 8766, "lan_ip": "192.168.1.x", "endpoints": ["/status", "...", "/monitor-status"] }
+{ "online": true, "version": "0.1.24", "port": 8765, "https_port": 8766, "lan_ip": "192.168.1.x", "endpoints": ["/status", "...", "/monitor-status"] }
 ```
 
 ### Monitor — Claude, Codex, System metrics
@@ -268,7 +268,7 @@ Response mẫu (`/monitor-status`):
 ```json
 {
   "online": true,
-  "version": "0.1.23",
+  "version": "0.1.24",
   "updated_at": "2026-06-25T...",
   "claude": { "enabled": true, "ok": true, "session_5h": { ... }, "weekly_7d": { ... } },
   "codex": { "enabled": true, "ok": true, "session_5h": { ... }, "weekly_7d": { ... } },

@@ -7,6 +7,8 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.24] - 2026-06-25
+
 ### Added
 
 - **Quota API** — mỗi usage window (`session_5h`, `weekly_7d`) thêm field **`reset_at`** (Unix timestamp giây) cạnh `reset_minutes`; áp dụng `/claude-usage`, `/codex-usage`, `/monitor-status`
@@ -261,6 +263,7 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `open-file` chặn path traversal và system paths
 - `exec` chỉ chấp nhận command key, không chạy raw shell
 
+[0.1.24]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.24
 [0.1.23]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.23
 [0.1.22]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.22
 [0.1.21]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.21
