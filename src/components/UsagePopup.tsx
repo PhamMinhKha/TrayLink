@@ -8,10 +8,8 @@ import { formatWindowHint, UsageRingGauge } from "@/components/UsageRingGauge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { usageBarColor } from "@/components/UsageCompactBar";
 import {
-  getClaudeUsageStatus,
-  getCodexUsageStatus,
   getConfig,
-  getSystemMetricsStatus,
+  getMonitorStatus,
   showDashboard,
   systemMetricsAnyEnabled,
   type AppConfig,
@@ -291,15 +289,20 @@ export function UsagePopup() {
       const cfg = await getConfig();
       setConfig(cfg);
       const sysOn = systemMetricsAnyEnabled(cfg.system_metrics);
+      const anyMonitor =
+        cfg.usage_monitor_enabled || cfg.codex_usage_monitor_enabled || sysOn;
 
-      const [claude, codex, system] = await Promise.all([
-        cfg.usage_monitor_enabled ? getClaudeUsageStatus() : Promise.resolve(null),
-        cfg.codex_usage_monitor_enabled ? getCodexUsageStatus() : Promise.resolve(null),
-        sysOn ? getSystemMetricsStatus() : Promise.resolve(null),
-      ]);
-      setClaudeUsage(claude);
-      setCodexUsage(codex);
-      setSystemMetrics(system);
+      if (!anyMonitor) {
+        setClaudeUsage(null);
+        setCodexUsage(null);
+        setSystemMetrics(null);
+        return;
+      }
+
+      const monitor = await getMonitorStatus();
+      setClaudeUsage(cfg.usage_monitor_enabled ? monitor.claude : null);
+      setCodexUsage(cfg.codex_usage_monitor_enabled ? monitor.codex : null);
+      setSystemMetrics(sysOn ? monitor.system : null);
     } finally {
       setLoading(false);
       requestAnimationFrame(() => {

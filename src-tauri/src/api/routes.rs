@@ -22,6 +22,7 @@ use crate::launcher::hotkey;
 use crate::net;
 use crate::state::{LogEntry, SharedState, APP_VERSION};
 use crate::codex_usage;
+use crate::monitor_status;
 use crate::usage_monitor;
 
 #[derive(Serialize)]
@@ -107,6 +108,10 @@ pub fn build_router(state: SharedState) -> Router {
         .route(
             "/system-metrics",
             get(system_metrics_get).post(system_metrics_post),
+        )
+        .route(
+            "/monitor-status",
+            get(monitor_status_get).post(monitor_status_post),
         )
     .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES as usize))
     .layer(CorsLayer::permissive())
@@ -693,6 +698,94 @@ fn handle_system_metrics(
         state,
         method,
         "/system-metrics",
+        200,
+        started.elapsed().as_millis() as u64,
+        client_ip,
+    );
+    (StatusCode::OK, Json(payload)).into_response()
+}
+
+#[derive(Deserialize)]
+struct MonitorStatusQuery {
+    #[serde(default)]
+    token: Option<String>,
+}
+
+async fn monitor_status_post(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+) -> Response {
+    let started = Instant::now();
+    if let Err(resp) = extract_token(&headers, None, &state) {
+        log_request(
+            &state,
+            "POST",
+            "/monitor-status",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_monitor_status(&state, "POST", started, &ip).await
+}
+
+async fn monitor_status_get(
+    State(state): State<SharedState>,
+    ClientIp(ip): ClientIp,
+    headers: HeaderMap,
+    Query(query): Query<MonitorStatusQuery>,
+) -> Response {
+    let started = Instant::now();
+    if !state.config.read().unwrap().allow_get {
+        log_request(
+            &state,
+            "GET",
+            "/monitor-status",
+            405,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return reject_get_disabled();
+    }
+
+    if let Err(resp) = extract_token(&headers, query.token.as_deref(), &state) {
+        log_request(
+            &state,
+            "GET",
+            "/monitor-status",
+            401,
+            started.elapsed().as_millis() as u64,
+            &ip,
+        );
+        return resp;
+    }
+
+    handle_monitor_status(&state, "GET", started, &ip).await
+}
+
+async fn handle_monitor_status(
+    state: &SharedState,
+    method: &str,
+    started: Instant,
+    client_ip: &str,
+) -> Response {
+    let (claude_enabled, codex_enabled, system_prefs) = {
+        let cfg = state.config.read().unwrap();
+        (
+            cfg.usage_monitor_enabled,
+            cfg.codex_usage_monitor_enabled,
+            cfg.system_metrics.clone(),
+        )
+    };
+    let payload =
+        monitor_status::get_all_status(claude_enabled, codex_enabled, &system_prefs).await;
+    log_request(
+        state,
+        method,
+        "/monitor-status",
         200,
         started.elapsed().as_millis() as u64,
         client_ip,

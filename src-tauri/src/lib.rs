@@ -2,6 +2,7 @@ mod api;
 mod apps;
 mod config;
 mod launcher;
+mod monitor_status;
 mod net;
 #[cfg(target_os = "macos")]
 mod macos;
@@ -145,6 +146,23 @@ fn get_system_metrics_status(
 ) -> system_metrics::SystemMetricsResponse {
     let prefs = state.config.read().unwrap().system_metrics.clone();
     system_metrics::get_status(&prefs)
+}
+
+#[tauri::command]
+async fn get_monitor_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<monitor_status::MonitorStatusResponse, String> {
+    let (claude_enabled, codex_enabled, system_prefs) = {
+        let cfg = state.config.read().unwrap();
+        (
+            cfg.usage_monitor_enabled,
+            cfg.codex_usage_monitor_enabled,
+            cfg.system_metrics.clone(),
+        )
+    };
+    Ok(
+        monitor_status::get_all_status(claude_enabled, codex_enabled, &system_prefs).await,
+    )
 }
 
 #[tauri::command]
@@ -498,6 +516,7 @@ pub fn run() {
             get_claude_diagnostics,
             get_codex_usage_status,
             get_system_metrics_status,
+            get_monitor_status,
             list_installed_apps_cmd,
             resolve_launch_path_cmd,
             list_browser_profiles,

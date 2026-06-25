@@ -246,6 +246,17 @@ export function SettingsPanel() {
           <p className="font-sans text-sm text-muted-foreground">GET — status</p>
           <pre className="overflow-x-auto rounded-md bg-muted p-3">{`curl ${apiBaseUrl(portNum, lanIp)}/status`}</pre>
 
+          <p className="font-sans text-sm text-muted-foreground">
+            GET — monitor (Claude + Codex + System, theo toggle trong Settings)
+          </p>
+          <pre className="overflow-x-auto rounded-md bg-muted p-3">
+            {allowGet
+              ? requireToken
+                ? `curl "${apiBaseUrl(portNum, lanIp)}/monitor-status?token=${showToken ? token : "<token>"}"`
+                : `curl "${apiBaseUrl(portNum, lanIp)}/monitor-status"`
+              : `# Bật "Cho phép GET" hoặc dùng POST:\ncurl -X POST "${apiBaseUrl(portNum, lanIp)}/monitor-status"${requireToken ? ` \\\n  -H "Authorization: Bearer ${showToken ? token : "<token>"}"` : ""}`}
+          </pre>
+
           {allowGet ? (
             <>
               <p className="font-sans text-sm text-muted-foreground">

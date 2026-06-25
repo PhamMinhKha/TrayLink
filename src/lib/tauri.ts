@@ -177,6 +177,15 @@ export interface SystemMetricsResponse {
   fan?: MetricFan | null;
 }
 
+export interface MonitorStatusResponse {
+  online: boolean;
+  version: string;
+  updated_at: string;
+  claude: UsageMonitorResponse;
+  codex: UsageMonitorResponse;
+  system: SystemMetricsResponse;
+}
+
 export interface ClaudeDiagnosticItem {
   label: string;
   status: string;
@@ -273,6 +282,10 @@ export async function getCodexUsageStatus(): Promise<UsageMonitorResponse> {
 
 export async function getSystemMetricsStatus(): Promise<SystemMetricsResponse> {
   return invoke<SystemMetricsResponse>("get_system_metrics_status");
+}
+
+export async function getMonitorStatus(): Promise<MonitorStatusResponse> {
+  return invoke<MonitorStatusResponse>("get_monitor_status");
 }
 
 async function fetchStatusFromApi(port: number): Promise<StatusResponse> {

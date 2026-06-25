@@ -1,6 +1,6 @@
 [package]
 name = "traylink"
-version = "0.1.21"
+version = "0.1.22"
 description = "TrayLink - App Launcher with HTTP API"
 authors = ["you"]
 edition = "2021"

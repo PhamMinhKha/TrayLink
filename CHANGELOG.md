@@ -7,6 +7,12 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-06-25
+
+### Added
+
+- **API `/monitor-status`** — một endpoint trả về trạng thái Claude, Codex và System metrics (theo toggle Settings); Tauri command `getMonitorStatus()`; popup tray gọi gộp thay vì 3 request riêng
+
 ## [0.1.21] - 2026-06-25
 
 ### Added
@@ -232,6 +238,7 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `open-file` chặn path traversal và system paths
 - `exec` chỉ chấp nhận command key, không chạy raw shell
 
+[0.1.22]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.22
 [0.1.21]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.21
 [0.1.20]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.20
 [0.1.15]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.15
