@@ -310,6 +310,7 @@ struct ServerStatusResponse {
     https_port: u16,
     lan_ip: Option<String>,
     error: Option<String>,
+    endpoints: &'static [&'static str],
 }
 
 #[tauri::command]
@@ -322,6 +323,7 @@ fn get_server_status(state: tauri::State<'_, Arc<AppState>>) -> ServerStatusResp
         https_port: api::server::https_port(port),
         lan_ip: net::get_lan_ip(),
         error: state.server_error.read().unwrap().clone(),
+        endpoints: api::routes::API_ENDPOINTS,
     }
 }
 

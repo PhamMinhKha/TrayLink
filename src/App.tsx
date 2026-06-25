@@ -9,9 +9,19 @@ import { AllowlistEditor } from "@/components/AllowlistEditor";
 import { RemoteDeckEditor } from "@/components/RemoteDeckEditor";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getServerStatus } from "@/lib/tauri";
 
 function App() {
   const [activeTab, setActiveTab] = useState("allowlist");
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+
+    void getServerStatus().then((status) => setVersion(status.version));
+  }, []);
 
   useEffect(() => {
     if (!isTauri()) {
@@ -57,6 +67,13 @@ function App() {
           <ThemeToggle />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
+          {version ? (
+            <>
+              Version{" "}
+              <span className="font-medium tabular-nums text-foreground">{version}</span>
+              {" · "}
+            </>
+          ) : null}
           Source code:{" "}
           <a
             href="https://github.com/PhamMinhKha/TrayLink"

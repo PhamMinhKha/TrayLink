@@ -4,7 +4,7 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import claudeSymbol from "@/assets/claude-ai-symbol.svg";
 import codexSymbol from "@/assets/codex-color.png";
-import { formatWindowHint, UsageRingGauge } from "@/components/UsageRingGauge";
+import { formatWindowHint } from "@/components/UsageRingGauge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { usageBarColor } from "@/components/UsageCompactBar";
 import {
@@ -37,13 +37,13 @@ function formatBps(value: number): string {
   return `${value.toFixed(0)} B/s`;
 }
 
-function LoadingRings() {
+function LoadingBars() {
   return (
-    <div className="flex justify-center gap-5 py-1">
+    <div className="space-y-2 py-1">
       {[0, 1].map((key) => (
-        <div key={key} className="flex flex-col items-center gap-1.5">
-          <div className="size-[62px] animate-pulse rounded-full bg-muted" />
-          <div className="h-2 w-8 animate-pulse rounded bg-muted" />
+        <div key={key} className="space-y-1">
+          <div className="h-2.5 animate-pulse rounded bg-muted" />
+          <div className="h-1 animate-pulse rounded-full bg-muted" />
         </div>
       ))}
     </div>
@@ -53,30 +53,41 @@ function LoadingRings() {
 function ProviderError({ message }: { message: string }) {
   return (
     <div className="flex gap-2 rounded-lg border border-rose-500/20 bg-rose-500/[0.08] px-2.5 py-2">
-      <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-400" />
+      <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-400" />
       <div className="min-w-0">
-        <p className="text-[11px] font-medium text-rose-300">Không lấy được quota</p>
-        <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">{message}</p>
+        <p className="text-xs font-medium text-rose-300">Không lấy được quota</p>
+        <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">{message}</p>
       </div>
     </div>
   );
 }
 
-function WindowGauges({ session, weekly }: { session: UsageWindow; weekly: UsageWindow }) {
+function QuotaWindowBar({ window, label }: { window: UsageWindow; label: string }) {
+  const percent = Math.max(0, Math.min(100, window.used_percent));
   return (
-    <div className="flex justify-around gap-1 px-0.5">
-      <UsageRingGauge
-        compact
-        percent={session.used_percent}
-        label="5 giờ"
-        hint={formatWindowHint(session.reset_minutes, session.remaining_percent)}
-      />
-      <UsageRingGauge
-        compact
-        percent={weekly.used_percent}
-        label="7 ngày"
-        hint={formatWindowHint(weekly.reset_minutes, weekly.remaining_percent)}
-      />
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold tabular-nums text-foreground">{percent.toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-all ${usageBarColor(percent)}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {formatWindowHint(window.reset_minutes, window.remaining_percent)}
+      </p>
+    </div>
+  );
+}
+
+function WindowBars({ session, weekly }: { session: UsageWindow; weekly: UsageWindow }) {
+  return (
+    <div className="space-y-2.5">
+      <QuotaWindowBar window={session} label="5 giờ" />
+      <QuotaWindowBar window={weekly} label="7 ngày" />
     </div>
   );
 }
@@ -103,16 +114,16 @@ function ProviderCard({
   }
 
   return (
-    <section className="usage-popup-card rounded-xl p-2.5">
-      <div className="mb-2 flex items-center gap-2">
+    <section className="usage-popup-card rounded-xl p-3">
+      <div className="mb-2.5 flex items-center gap-2.5">
         <div
-          className={`flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${accentClass}`}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${accentClass}`}
         >
-          <img src={icon} alt={iconAlt} className="size-3.5 object-contain" />
+          <img src={icon} alt={iconAlt} className="size-4 object-contain" />
         </div>
-        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{name}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{name}</p>
         {usage?.ok && usage.updated_at ? (
-          <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
             {new Date(usage.updated_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -122,11 +133,11 @@ function ProviderCard({
       </div>
 
       {usage?.ok && usage.session_5h && usage.weekly_7d ? (
-        <WindowGauges session={usage.session_5h} weekly={usage.weekly_7d} />
+        <WindowBars session={usage.session_5h} weekly={usage.weekly_7d} />
       ) : usage && !usage.ok ? (
         <ProviderError message={usage.error ?? "Không lấy được dữ liệu quota."} />
       ) : loading ? (
-        <LoadingRings />
+        <LoadingBars />
       ) : null}
     </section>
   );
@@ -145,11 +156,11 @@ function SystemMetricRow({
     const p = Math.max(0, Math.min(100, percent));
     return (
       <div className="space-y-1">
-        <div className="flex items-center justify-between gap-2 text-[10px]">
+        <div className="flex items-center justify-between gap-2 text-xs">
           <span className="text-muted-foreground">{label}</span>
-          <span className="font-medium tabular-nums text-foreground">{p.toFixed(0)}%</span>
+          <span className="font-semibold tabular-nums text-foreground">{p.toFixed(0)}%</span>
         </div>
-        <div className="h-1 overflow-hidden rounded-full bg-muted">
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
             className={`h-full rounded-full ${usageBarColor(p)}`}
             style={{ width: `${p}%` }}
@@ -160,9 +171,9 @@ function SystemMetricRow({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 text-[10px]">
+    <div className="flex items-center justify-between gap-2 text-xs">
       <span className="text-muted-foreground">{label}</span>
-      <span className="truncate font-medium tabular-nums text-foreground">{value ?? "—"}</span>
+      <span className="truncate font-semibold tabular-nums text-foreground">{value ?? "—"}</span>
     </div>
   );
 }
@@ -191,14 +202,14 @@ function SystemSection({
       metrics.fan);
 
   return (
-    <section className="usage-popup-card rounded-xl p-2.5">
-      <div className="mb-2 flex items-center gap-2">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/30 to-blue-500/20 ring-1 ring-sky-400/20">
-          <Activity className="size-3.5 text-sky-300" />
+    <section className="usage-popup-card rounded-xl p-3">
+      <div className="mb-2.5 flex items-center gap-2.5">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/30 to-blue-500/20 ring-1 ring-sky-400/20">
+          <Activity className="size-4 text-sky-300" />
         </div>
-        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">System</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">System</p>
         {metrics?.updated_at ? (
-          <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
             {new Date(metrics.updated_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -375,14 +386,14 @@ export function UsagePopup() {
   };
 
   return (
-    <div ref={rootRef} id="usage-popup-root" className="traylink-theme usage-popup-root text-foreground">
-      <div className="flex flex-col p-3">
-        <header className="mb-2.5 flex items-center justify-between gap-2">
+    <div ref={rootRef} id="usage-popup-root" className="traylink-theme usage-popup-root text-[13px] text-foreground">
+      <div className="flex flex-col p-3.5">
+        <header className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               TrayLink
             </p>
-            <h1 className="text-sm font-semibold text-foreground">Monitor</h1>
+            <h1 className="text-base font-semibold text-foreground">Monitor</h1>
           </div>
           <div className="flex items-center gap-1.5">
             <ThemeToggle compact />
@@ -391,9 +402,9 @@ export function UsagePopup() {
               disabled={loading || !anyEnabled}
               onClick={() => void refreshAll()}
               aria-label="Làm mới"
-              className="flex size-7 items-center justify-center rounded-lg border border-border bg-background/60 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground disabled:opacity-40"
+              className="flex size-8 items-center justify-center rounded-lg border border-border bg-background/60 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground disabled:opacity-40"
             >
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
             </button>
           </div>
         </header>
@@ -404,8 +415,8 @@ export function UsagePopup() {
               <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-xl bg-muted">
                 <Settings2 className="size-4 text-muted-foreground" />
               </div>
-              <p className="text-xs font-medium text-foreground">Chưa bật theo dõi</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">Chưa bật theo dõi</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Bật AI quota hoặc System metrics trong Settings.
               </p>
             </div>
@@ -437,9 +448,9 @@ export function UsagePopup() {
         <button
           type="button"
           onClick={() => void openSettings()}
-          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background/60 py-2 text-[11px] font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-accent hover:text-accent-foreground"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background/60 py-2.5 text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-accent hover:text-accent-foreground"
         >
-          <Settings2 className="size-3.5" />
+          <Settings2 className="size-4" />
           Mở Settings
         </button>
       </div>

@@ -91,6 +91,7 @@ export interface StatusResponse {
   https_port: number;
   lan_ip?: string | null;
   error?: string | null;
+  endpoints?: string[];
 }
 
 export interface UsageWindow {

@@ -7,6 +7,21 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.23] - 2026-06-25
+
+### Added
+
+- **Dashboard** — hiển thị version app cạnh link GitHub (từ `getServerStatus()`)
+- **API `/status`** — thêm field `endpoints` liệt kê toàn bộ route HTTP (kể cả `/monitor-status`)
+
+### Changed
+
+- **Monitor popup** — quota Claude/Codex dùng **progress bar** thay vòng tròn; tăng cỡ chữ và padding cho dễ đọc
+
+### Documentation
+
+- README: screenshot popup Monitor, hướng dẫn click tray + bảng API Claude/Codex/System/`/monitor-status`
+
 ## [0.1.22] - 2026-06-25
 
 ### Added
@@ -238,6 +253,7 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `open-file` chặn path traversal và system paths
 - `exec` chỉ chấp nhận command key, không chạy raw shell
 
+[0.1.23]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.23
 [0.1.22]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.22
 [0.1.21]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.21
 [0.1.20]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.20

@@ -19,6 +19,12 @@ App launcher chạy nền trên PC, lắng nghe HTTP API trên mạng LAN để 
 - **Remote Deck**: mở link trên điện thoại/tablet cùng Wi‑Fi → grid icon app kiểu Stream Deck, chạm để mở app trên PC
 - **Upload từ điện thoại**: gửi ảnh, video, tài liệu từ Remote Deck lên PC (lưu vào `Downloads/TrayLink`)
 - **Phím tắt theo app**: cấu hình trong Dashboard, gọi qua Remote Deck hoặc HTTP API `/send-hotkey`
+- **Monitor popup** — click icon tray xem quota **Claude Code** / **Codex** và thông số **System** (CPU, RAM, disk, mạng…) trong một popup
+- **Theo dõi tùy chọn** — bật/tắt từng metric trong Settings; API riêng hoặc gộp qua `/monitor-status`
+
+![Monitor popup — Claude, Codex, System metrics](docs/monitor-popup.png)
+
+*Click trái icon tray → popup Monitor: quota AI (5 giờ / 7 ngày) và thông số máy. Bật từng loại trong Settings → Claude / Codex / System metrics.*
 
 ## Hướng dẫn sử dụng
 
@@ -99,12 +105,13 @@ Hoặc trên trang Remote: chạm nút **Thêm shortcut** (vuông `+`, góc trá
 ### Các bước nhanh
 
 1. **Cài & mở TrayLink** — app chạy nền, icon nằm trên **menu bar** (macOS) hoặc **system tray** (Windows).
-2. **Open Dashboard** từ menu tray → tab **Apps & Commands**.
-3. **Thêm app** — nhập key (vd: `chrome`), chọn app từ danh sách hoặc duyệt file `.app` / `.exe`.
-4. **Test** — thử mở app trên máy này.
-5. **API** — mở modal, **Copy** link GET hoặc lệnh curl POST (dùng IP LAN, vd `http://192.168.1.x:8765/open-app?app=chrome`).
-6. Dán link vào **Stream Deck**, shortcut, trình duyệt trên điện thoại/tablet cùng Wi‑Fi, hoặc gọi từ script.
-7. **Remote Deck** — Dashboard → **Overview** → copy link **HTTPS** Remote Deck, mở trên điện thoại để điều khiển app dạng grid icon (bật nút mặt trời để giữ màn hình sáng). Sắp xếp thứ tự và ẩn/hiện app trong tab **Remote Deck**. Xem [hướng dẫn HTTPS](docs/allow-https/README.md).
+2. **Monitor** — click **trái** icon tray để xem quota Claude/Codex và thông số hệ thống (bật trong Settings trước).
+3. **Open Dashboard** từ menu tray → tab **Apps & Commands**.
+4. **Thêm app** — nhập key (vd: `chrome`), chọn app từ danh sách hoặc duyệt file `.app` / `.exe`.
+5. **Test** — thử mở app trên máy này.
+6. **API** — mở modal, **Copy** link GET hoặc lệnh curl POST (dùng IP LAN, vd `http://192.168.1.x:8765/open-app?app=chrome`).
+7. Dán link vào **Stream Deck**, shortcut, trình duyệt trên điện thoại/tablet cùng Wi‑Fi, hoặc gọi từ script.
+8. **Remote Deck** — Dashboard → **Overview** → copy link **HTTPS** Remote Deck, mở trên điện thoại để điều khiển app dạng grid icon (bật nút mặt trời để giữ màn hình sáng). Sắp xếp thứ tự và ẩn/hiện app trong tab **Remote Deck**. Xem [hướng dẫn HTTPS](docs/allow-https/README.md).
 
 ![Modal API — copy link GET / curl POST](docs/screenshot2.png)
 
@@ -234,7 +241,39 @@ curl http://192.168.1.x:8765/status
 Response:
 
 ```json
-{ "online": true, "version": "0.1.0", "port": 8765, "lan_ip": "192.168.1.x" }
+{ "online": true, "version": "0.1.23", "port": 8765, "https_port": 8766, "lan_ip": "192.168.1.x", "endpoints": ["/status", "...", "/monitor-status"] }
+```
+
+### Monitor — Claude, Codex, System metrics
+
+Bật từng loại trong Dashboard → **Settings** (Claude usage, Codex usage, System metrics). Chỉ các mục đã bật mới có dữ liệu trong response.
+
+| Endpoint | Mô tả |
+|----------|--------|
+| `GET/POST /claude-usage` | Quota Claude Code (5 giờ / 7 ngày) |
+| `GET/POST /codex-usage` | Quota Codex |
+| `GET/POST /system-metrics` | CPU, RAM, disk, mạng, nhiệt, quạt… |
+| `GET/POST /monitor-status` | **Gộp cả ba** trong một JSON |
+
+```bash
+# Một lần gọi — trả về claude + codex + system (theo toggle Settings)
+curl http://192.168.1.x:8765/monitor-status
+
+# Hoặc POST (khi GET bị tắt)
+curl -X POST http://192.168.1.x:8765/monitor-status
+```
+
+Response mẫu (`/monitor-status`):
+
+```json
+{
+  "online": true,
+  "version": "0.1.23",
+  "updated_at": "2026-06-25T...",
+  "claude": { "enabled": true, "ok": true, "session_5h": { ... }, "weekly_7d": { ... } },
+  "codex": { "enabled": true, "ok": true, "session_5h": { ... }, "weekly_7d": { ... } },
+  "system": { "enabled": true, "ok": true, "cpu": { ... }, "memory": { ... } }
+}
 ```
 
 ### Remote Deck (giao diện điện thoại)

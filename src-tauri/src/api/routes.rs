@@ -32,7 +32,20 @@ pub struct StatusResponse {
     port: u16,
     https_port: u16,
     lan_ip: Option<String>,
+    endpoints: &'static [&'static str],
 }
+
+pub const API_ENDPOINTS: &[&str] = &[
+    "/status",
+    "/open-app",
+    "/open-file",
+    "/exec",
+    "/send-hotkey",
+    "/claude-usage",
+    "/codex-usage",
+    "/system-metrics",
+    "/monitor-status",
+];
 
 #[derive(Deserialize)]
 pub struct OpenAppRequest {
@@ -128,6 +141,7 @@ async fn status(State(state): State<SharedState>) -> Json<StatusResponse> {
         port,
         https_port: https_port(port),
         lan_ip: net::get_lan_ip(),
+        endpoints: API_ENDPOINTS,
     })
 }
 
