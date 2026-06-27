@@ -7,6 +7,10 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Popup tray trên Windows** — tự mở ngược lên khi tray nằm sát taskbar dưới màn hình, tránh popup bị đẩy xuống dưới màn hình và khó nhìn
+
 ## [0.1.24] - 2026-06-25
 
 ### Added
