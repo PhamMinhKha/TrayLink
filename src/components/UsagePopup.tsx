@@ -100,6 +100,7 @@ function ProviderCard({
   enabled,
   usage,
   loading,
+  usageMode,
 }: {
   name: string;
   icon: string;
@@ -108,10 +109,13 @@ function ProviderCard({
   enabled: boolean;
   usage: UsageMonitorResponse | null;
   loading: boolean;
+  usageMode: "claude" | "codex";
 }) {
   if (!enabled) {
     return null;
   }
+
+  const weeklyWindow = usage?.weekly_7d ?? null;
 
   return (
     <section className="usage-popup-card rounded-xl p-3">
@@ -132,8 +136,12 @@ function ProviderCard({
         ) : null}
       </div>
 
-      {usage?.ok && usage.session_5h && usage.weekly_7d ? (
-        <WindowBars session={usage.session_5h} weekly={usage.weekly_7d} />
+      {usage?.ok && (usageMode === "codex" ? weeklyWindow : usage.session_5h && usage.weekly_7d) ? (
+        usageMode === "codex" ? (
+          weeklyWindow ? <QuotaWindowBar window={weeklyWindow} label="7 ngày" /> : null
+        ) : (
+          <WindowBars session={usage.session_5h!} weekly={usage.weekly_7d!} />
+        )
       ) : usage && !usage.ok ? (
         <ProviderError message={usage.error ?? "Không lấy được dữ liệu quota."} />
       ) : loading ? (
@@ -430,6 +438,7 @@ export function UsagePopup() {
                 enabled={claudeEnabled}
                 usage={claudeUsage}
                 loading={loading}
+                usageMode="claude"
               />
               <ProviderCard
                 name="Codex"
@@ -439,6 +448,7 @@ export function UsagePopup() {
                 enabled={codexEnabled}
                 usage={codexUsage}
                 loading={loading}
+                usageMode="codex"
               />
               <SystemSection enabled={systemEnabled} metrics={systemMetrics} loading={loading} />
             </>

@@ -577,47 +577,6 @@ where
     }
 }
 
-fn role_for_window(window: &UsageWindow) -> &'static str {
-    match window.limit_window_seconds {
-        18_000 => "session",
-        604_800 => "weekly",
-        _ => "unknown",
-    }
-}
-
-fn normalize_windows(
-    primary: Option<UsageWindow>,
-    secondary: Option<UsageWindow>,
-) -> (Option<UsageWindow>, Option<UsageWindow>) {
-    match (primary, secondary) {
-        (Some(primary), Some(secondary)) => {
-            let primary_role = role_for_window(&primary);
-            let secondary_role = role_for_window(&secondary);
-
-            if matches!((primary_role, secondary_role), ("weekly", "session") | ("weekly", "unknown")) {
-                (Some(secondary), Some(primary))
-            } else {
-                (Some(primary), Some(secondary))
-            }
-        }
-        (Some(window), None) => {
-            if role_for_window(&window) == "weekly" {
-                (None, Some(window))
-            } else {
-                (Some(window), None)
-            }
-        }
-        (None, Some(window)) => {
-            if role_for_window(&window) == "weekly" {
-                (None, Some(window))
-            } else {
-                (Some(window), None)
-            }
-        }
-        (None, None) => (None, None),
-    }
-}
-
 async fn fetch_usage(access_token: &str, account_id: Option<&str>) -> Result<CodexUsageResponse, String> {
     let url = resolve_usage_url();
     let client = reqwest::Client::new();
@@ -682,13 +641,19 @@ fn response_from_codex(
     identity: &AuthBackedIdentity,
 ) -> UsageMonitorResponse {
     let rate_limit = response.rate_limit.as_ref();
-    let (primary, secondary) = if let Some(rate_limit) = rate_limit {
-        let primary = rate_limit.primary_window.as_ref().map(|value| window_from_response(value, "5 giờ", "active"));
-        let secondary = rate_limit.secondary_window.as_ref().map(|value| window_from_response(value, "7 ngày", "active"));
-        normalize_windows(primary, secondary)
-    } else {
-        (None, None)
-    };
+    let weekly = rate_limit.and_then(|rate_limit| {
+        rate_limit
+            .secondary_window
+            .as_ref()
+            .filter(|window| window.limit_window_seconds == 604_800)
+            .or_else(|| {
+                rate_limit
+                    .primary_window
+                    .as_ref()
+                    .filter(|window| window.limit_window_seconds == 604_800)
+            })
+            .map(|window| window_from_response(window, "7 ngày", "active"))
+    });
 
     UsageMonitorResponse {
         enabled: true,
@@ -696,8 +661,8 @@ fn response_from_codex(
         plan: response.plan_type.clone().or_else(|| identity.plan.clone()),
         account_id: identity.provider_account_id.clone(),
         updated_at: Some(Utc::now().to_rfc3339()),
-        session_5h: primary,
-        weekly_7d: secondary,
+        session_5h: None,
+        weekly_7d: weekly,
         credits: response.credits.as_ref().map(credits_from),
         ok: true,
         error: None,

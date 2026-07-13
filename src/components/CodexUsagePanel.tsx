@@ -72,8 +72,8 @@ function usageSummary(status: UsageMonitorResponse | null): string {
     return status?.error ?? "Chưa có dữ liệu usage.";
   }
 
-  if (!status.session_5h || !status.weekly_7d) {
-    return "Đang chờ dữ liệu quota từ Codex.";
+  if (!status.weekly_7d) {
+    return "Đang chờ dữ liệu quota tuần từ Codex.";
   }
 
   return `Cập nhật ${status.updated_at ? new Date(status.updated_at).toLocaleString() : "gần đây"}`;
@@ -181,7 +181,7 @@ export function CodexUsagePanel() {
             <Label htmlFor="codex-usage-monitor">Bật lấy % sử dụng</Label>
             <p className="max-w-2xl text-sm text-muted-foreground">
               Khi bật, TrayLink sẽ đọc `~/.codex/auth.json` rồi gọi OpenAI Codex usage API
-              để lấy quota 5 giờ và 7 ngày. Cấu trúc này để sẵn cho các client ngoài gọi lại
+              để lấy quota tuần. Cấu trúc này để sẵn cho các client ngoài gọi lại
               `/codex-usage` luôn.
             </p>
           </div>
@@ -220,7 +220,6 @@ export function CodexUsagePanel() {
               <span>•</span>
               <span>{summary}</span>
             </div>
-            {usage.session_5h && <UsageRow window={usage.session_5h} />}
             {usage.weekly_7d && <UsageRow window={usage.weekly_7d} />}
           </div>
         ) : (
@@ -255,8 +254,8 @@ POST ${usageUrl}`}
           </pre>
           <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">{`${curlGet}\n\n${curlPost}`}</pre>
           <p className="text-xs text-muted-foreground">
-            Response: `enabled`, `provider`, `plan`, `account_id`, `updated_at`, `session_5h`,
-            `weekly_7d`, `credits`, `ok`, `error`.
+            Response: `enabled`, `provider`, `plan`, `account_id`, `updated_at`, `weekly_7d`,
+            `credits`, `ok`, `error`.
           </p>
         </div>
 

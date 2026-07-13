@@ -7,9 +7,16 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.25] - 2026-07-13
+
+### Added
+
+- **Codex quota weekly-only** — TrayLink chỉ lấy và hiển thị quota tuần cho Codex theo response mới; API `/codex-usage` và popup/Settings cập nhật theo đúng shape hiện tại
+
 ### Fixed
 
 - **Popup tray trên Windows** — tự mở ngược lên khi tray nằm sát taskbar dưới màn hình, tránh popup bị đẩy xuống dưới màn hình và khó nhìn
+- **Codex response parsing** — chịu được `credits.balance` dạng string và response chỉ còn `weekly` window
 
 ## [0.1.24] - 2026-06-25
 
@@ -283,3 +290,4 @@ và dự án tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 [0.1.7]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.7
 [0.1.6]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.6
 [0.1.0]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.0
+[0.1.25]: https://github.com/PhamMinhKha/TrayLink/releases/tag/v0.1.25
